@@ -3,6 +3,8 @@ package main
 import(
   "fmt"
   "context"
+  "io"
+  "os"
   "sync"
   "./runtime"
 	"github.com/docker/docker/api/types"
@@ -14,14 +16,25 @@ import(
 var ctx context.Context = context.Background()
 var wg sync.WaitGroup
 
-func createContainer(cli *client.Client, name string, image string){
+func createContainer(cli *client.Client, r runtime.Runtime){
+
+  if r.CheckIfExistsLocally(cli, ctx) != true{
+    fmt.Printf("%s not found in host. Pulling from container registry...\n", r.Tag)
+    out, pullError := cli.ImagePull(ctx, r.Tag, types.ImagePullOptions{All: false})
+    if pullError != nil{
+      panic(pullError)
+    }
+
+    defer out.Close()
+    io.Copy(os.Stdout, out)
+  }
+
   resp, err := cli.ContainerCreate(ctx, &container.Config{
-    Image: image,
+    Image: r.Image,
     Cmd: []string{"/bin/bash"},
     Tty: true,
-  }, nil, nil, name)
+  }, nil, nil, r.Name)
   if err != nil {
-    // TODO: If image not found, Pull it from Docker hub
     panic(err)
   }
 
@@ -29,15 +42,9 @@ func createContainer(cli *client.Client, name string, image string){
     panic(err)
   }
 
-  fmt.Printf("Created container %s : %s\n", name, resp.ID)
+  fmt.Printf("Created container %s : %s\n", r.Name, resp.ID)
   wg.Done()
 }
-
-
-func destroyContainer(cli *client.Client, name string, image string){
-
-}
-
 
 func runCode(r runtime.Runtime, code string){
 
@@ -53,7 +60,7 @@ func main(){
   wg.Add(len(runtime.Runtimes))
 
   for _, r := range runtime.Runtimes{
-    go createContainer(cli, r.Name, r.Image)
+    go createContainer(cli, r)
   }
 
   wg.Wait()
