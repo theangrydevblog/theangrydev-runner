@@ -58,4 +58,5 @@ func (r Runtime) CheckIfExistsLocally(ctx context.Context, cli *client.Client) b
 var Runtimes = []Runtime{
 	Runtime{Name: "theangrydev_python", Tag: "python:latest", Exec: "python", Image: "docker.io/python"},
 	Runtime{Name: "theangrydev_ruby", Tag: "ruby:latest", Exec: "ruby", Image: "docker.io/ruby"},
+	Runtime{Name: "theangrydev_rust", Tag: "rust:latest", Exec: "ruby", Image: "docker.io/rust"},
 	Runtime{Name: "theangrydev_node", Tag: "node:latest", Exec: "node", Image: "docker.io/node"}}
