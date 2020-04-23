@@ -29,20 +29,24 @@ func createContainer(cli *client.Client, r runtime.Runtime) {
 		io.Copy(os.Stdout, out)
 	}
 
-	resp, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: r.Image,
-		Cmd:   []string{"/bin/bash"},
-		Tty:   true,
-	}, nil, nil, r.Name)
-	if err != nil {
-		panic(err)
-	}
+	if r.UpdateID(ctx, cli) == nil {
+		fmt.Printf("Creating container %s\n", r.Name)
+		resp, err := cli.ContainerCreate(ctx, &container.Config{
+			Image: r.Image,
+			Cmd:   []string{"/bin/bash"},
+			Tty:   true,
+		}, nil, nil, r.Name)
+		if err != nil {
+			panic(err)
+		}
 
-	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-		panic(err)
-	}
+		if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+			panic(err)
+		}
 
-	fmt.Printf("Created container %s : %s\n", r.Name, resp.ID)
+		fmt.Printf("Created container %s : %s\n", r.Name, resp.ID)
+
+	}
 	wg.Done()
 }
 

@@ -3,17 +3,19 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
 
-// Runtime represents a runtime environment. Eg: Node.js, CPython, CRuby etc
+// Runtime represents a runtime environment/Docker container(s). Eg: Node.js, CPython, CRuby etc
 type Runtime struct {
 	Name          string
 	Exec          string
 	Tag           string
 	Image         string
+	ID            *string
 	ExistsLocally *bool
 }
 
@@ -50,6 +52,36 @@ func (r Runtime) CheckIfExistsLocally(ctx context.Context, cli *client.Client) b
 	}
 
 	return *r.ExistsLocally
+
+}
+
+// UpdateID checks if there is a container ID attached to this runtime
+// If not, then either 1) There are no containers running 2) Containers are running but weren't spawned by the current main process
+// If 2) is the case, grab the ID of the currently active container and store it in the struct
+func (r Runtime) UpdateID(ctx context.Context, cli *client.Client) *string {
+	if r.ID == nil {
+		containers, err := cli.ContainerList(ctx, types.ContainerListOptions{})
+		if err != nil {
+			panic(err)
+		}
+
+		for _, container := range containers {
+			for _, name := range container.Names {
+				if "/"+r.Name == name {
+					r.ID = &container.ID
+					break
+				}
+			}
+
+			if r.ID != nil {
+				fmt.Printf("Container %s found for runtime %s\n", *r.ID, r.Name)
+				break
+			}
+		}
+
+	}
+
+	return r.ID
 
 }
 
