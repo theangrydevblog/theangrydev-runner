@@ -45,6 +45,8 @@ func createContainer(cli *client.Client, r runtime.Runtime) {
 		}
 
 		fmt.Printf("Created container %s : %s\n", r.Name, resp.ID)
+		fmt.Println("Updating runtime ID")
+		r.UpdateID(ctx, cli)
 
 	}
 	wg.Done()
