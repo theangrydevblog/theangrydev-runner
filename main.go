@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"sync"
 
@@ -16,7 +17,7 @@ import (
 var ctx context.Context = context.Background()
 var wg sync.WaitGroup
 
-func createContainer(cli *client.Client, r runtime.Runtime) {
+func createContainer(cli *client.Client, r *runtime.Runtime) {
 
 	if r.CheckIfExistsLocally(ctx, cli) != true {
 		fmt.Printf("%s not found in host. Pulling from container registry...\n", r.Tag)
@@ -63,12 +64,24 @@ func main() {
 		panic(err)
 	}
 
-	wg.Add(len(runtime.Runtimes))
+	runtimes := runtime.Runtimes
 
-	for _, r := range runtime.Runtimes {
-		go createContainer(cli, r)
+	wg.Add(len(runtimes))
+
+	for idx := range runtimes {
+		go createContainer(cli, &runtimes[idx])
 	}
 
 	wg.Wait()
+
+	dat, err := ioutil.ReadFile("./tests/scripts/python.py")
+	if err != nil {
+		panic(err)
+	}
+
+	python := &runtimes[0]
+	output := python.ExecuteCode(ctx, cli, string(dat))
+
+	fmt.Println(output)
 
 }
