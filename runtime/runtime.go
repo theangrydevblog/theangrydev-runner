@@ -3,7 +3,6 @@ package runtime
 
 import (
 	"context"
-	"fmt"
 
 	"../container"
 	"github.com/docker/docker/api/types"
@@ -91,37 +90,6 @@ func (r *Runtime) CheckIfExistsLocally(ctx context.Context, cli *client.Client) 
 	}
 
 	return *r.ExistsLocally
-
-}
-
-// UpdateID checks if there is a container ID attached to this runtime
-// If not, then either 1) There are no containers running 2) Containers are running but weren't spawned by the current main process
-// If 2) is the case, grab the ID of the currently active container and store it in the struct
-func (r *Runtime) UpdateID(ctx context.Context, cli *client.Client) *string {
-
-	if r.Container.ID == nil {
-		containers, err := cli.ContainerList(ctx, types.ContainerListOptions{})
-		if err != nil {
-			panic(err)
-		}
-
-		for _, container := range containers {
-			for _, name := range container.Names {
-				if "/"+r.Name == name {
-					r.Container.ID = &container.ID
-					break
-				}
-			}
-
-			if r.Container.ID != nil {
-				fmt.Printf("Container %s found for runtime %s\n", *r.Container.ID, r.Name)
-				break
-			}
-		}
-
-	}
-
-	return r.Container.ID
 
 }
 
