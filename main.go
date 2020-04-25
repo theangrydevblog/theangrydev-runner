@@ -75,7 +75,7 @@ func main() {
 		message := <-alertChannel
 		if message.MessageCode != true {
 			fmt.Printf("Container %s is shut down...restarting\n", message.Container.Name)
-			message.Container.RestartContainer(ctx, cli)
+			go message.Container.RestartContainer(ctx, cli)
 		}
 
 	}
