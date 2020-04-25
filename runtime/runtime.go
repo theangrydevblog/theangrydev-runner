@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 
+	"../container"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
@@ -15,8 +16,8 @@ type Runtime struct {
 	Exec          []string
 	Tag           string
 	Image         string
-	ID            *string
 	ExistsLocally *bool
+	Container     *container.Container
 }
 
 // ExecuteCode runs the source code in the relevant runtime environment
@@ -27,7 +28,7 @@ func (r *Runtime) ExecuteCode(ctx context.Context, cli *client.Client, code stri
 		AttachStdout: true,
 		AttachStderr: true,
 	}
-	start, err := cli.ContainerExecCreate(ctx, *r.ID, execConfig)
+	start, err := cli.ContainerExecCreate(ctx, *r.Container.ID, execConfig)
 	if err != nil {
 		panic(err)
 	}
@@ -97,7 +98,8 @@ func (r *Runtime) CheckIfExistsLocally(ctx context.Context, cli *client.Client) 
 // If not, then either 1) There are no containers running 2) Containers are running but weren't spawned by the current main process
 // If 2) is the case, grab the ID of the currently active container and store it in the struct
 func (r *Runtime) UpdateID(ctx context.Context, cli *client.Client) *string {
-	if r.ID == nil {
+
+	if r.Container.ID == nil {
 		containers, err := cli.ContainerList(ctx, types.ContainerListOptions{})
 		if err != nil {
 			panic(err)
@@ -106,27 +108,46 @@ func (r *Runtime) UpdateID(ctx context.Context, cli *client.Client) *string {
 		for _, container := range containers {
 			for _, name := range container.Names {
 				if "/"+r.Name == name {
-					r.ID = &container.ID
+					r.Container.ID = &container.ID
 					break
 				}
 			}
 
-			if r.ID != nil {
-				fmt.Printf("Container %s found for runtime %s\n", *r.ID, r.Name)
+			if r.Container.ID != nil {
+				fmt.Printf("Container %s found for runtime %s\n", *r.Container.ID, r.Name)
 				break
 			}
 		}
 
 	}
 
-	return r.ID
+	return r.Container.ID
 
 }
 
-// Runtimes is a list of runtime environments we want to spawn to service requests
-// Currently only 1 runtime per language should suffice
-var Runtimes = []Runtime{
-	Runtime{Name: "theangrydev_python", Tag: "python:latest", Exec: []string{"python", "-c"}, Image: "docker.io/python"},
-	Runtime{Name: "theangrydev_ruby", Tag: "ruby:latest", Exec: []string{"ruby", "-e"}, Image: "docker.io/ruby"},
-	Runtime{Name: "theangrydev_rust", Tag: "rust:latest", Exec: []string{}, Image: "docker.io/rust"},
-	Runtime{Name: "theangrydev_node", Tag: "node:latest", Exec: []string{}, Image: "docker.io/node"}}
+// Runtimes is a map of runtime environments we want to spawn to service requests
+var Runtimes = map[string]*Runtime{
+	"Python": &Runtime{
+		Name:      "python",
+		Tag:       "python:latest",
+		Exec:      []string{"python", "-c"},
+		Container: &container.Container{Name: "theangrydev_python"},
+		Image:     "docker.io/python"},
+	"Ruby": &Runtime{
+		Name:      "ruby",
+		Tag:       "ruby:latest",
+		Exec:      []string{"ruby", "-e"},
+		Container: &container.Container{Name: "theangrydev_ruby"},
+		Image:     "docker.io/ruby"},
+	"Rust": &Runtime{
+		Name:      "rust",
+		Tag:       "rust:latest",
+		Exec:      []string{},
+		Container: &container.Container{Name: "theangrydev_rust"},
+		Image:     "docker.io/rust"},
+	"JavaScript": &Runtime{
+		Name:      "node",
+		Tag:       "node:latest",
+		Exec:      []string{},
+		Container: &container.Container{Name: "theangrydev_node"},
+		Image:     "docker.io/node"}}

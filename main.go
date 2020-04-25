@@ -8,54 +8,14 @@ import (
 	"os"
 	"sync"
 
+	containerStruct "./container"
 	"./runtime"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 )
 
 var ctx context.Context = context.Background()
 var wg sync.WaitGroup
-
-func createContainer(cli *client.Client, r *runtime.Runtime) {
-
-	if r.CheckIfExistsLocally(ctx, cli) != true {
-		fmt.Printf("%s not found in host. Pulling from container registry...\n", r.Tag)
-		out, pullError := cli.ImagePull(ctx, r.Tag, types.ImagePullOptions{All: false})
-		if pullError != nil {
-			panic(pullError)
-		}
-
-		defer out.Close()
-		io.Copy(os.Stdout, out)
-	}
-
-	if r.UpdateID(ctx, cli) == nil {
-		fmt.Printf("Creating container %s\n", r.Name)
-		resp, err := cli.ContainerCreate(ctx, &container.Config{
-			Image: r.Image,
-			Cmd:   []string{"/bin/bash"},
-			Tty:   true,
-		}, nil, nil, r.Name)
-		if err != nil {
-			panic(err)
-		}
-
-		if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("Created container %s : %s\n", r.Name, resp.ID)
-		fmt.Println("Updating runtime ID")
-		r.UpdateID(ctx, cli)
-
-	}
-	wg.Done()
-}
-
-func runCode(r runtime.Runtime, code string) {
-
-}
 
 func main() {
 
@@ -68,8 +28,28 @@ func main() {
 
 	wg.Add(len(runtimes))
 
-	for idx := range runtimes {
-		go createContainer(cli, &runtimes[idx])
+	for _, r := range runtimes {
+		go func(r *runtime.Runtime) {
+			if r.CheckIfExistsLocally(ctx, cli) != true {
+				fmt.Printf("%s not found in host. Pulling from container registry...\n", r.Tag)
+				out, pullError := cli.ImagePull(ctx, r.Tag, types.ImagePullOptions{All: false})
+				if pullError != nil {
+					panic(pullError)
+				}
+
+				defer out.Close()
+				io.Copy(os.Stdout, out)
+			}
+
+			if r.Container.CheckIfRunning(ctx, cli) {
+				fmt.Printf("%s is already running. Grabbing ID...\n", r.Container.Name)
+				r.Container.UpdateID(ctx, cli)
+			} else {
+				r.Container.StartContainer(ctx, cli, r.Image)
+			}
+
+			wg.Done()
+		}(r)
 	}
 
 	wg.Wait()
@@ -79,9 +59,25 @@ func main() {
 		panic(err)
 	}
 
-	python := &runtimes[0]
+	python := runtimes["Python"]
 	output := python.ExecuteCode(ctx, cli, string(dat))
 
 	fmt.Println(output)
+
+	alertChannel := make(chan containerStruct.Health)
+	for _, r := range runtimes {
+		fmt.Printf("Firing off health checker for %s\n", r.Container.Name)
+		go r.Container.Monitor(ctx, cli, alertChannel)
+	}
+
+	fmt.Println("Waiting for requests...")
+	for {
+		message := <-alertChannel
+		if message.MessageCode != true {
+			fmt.Printf("Container %s is shut down...restarting\n", message.Container.Name)
+			message.Container.RestartContainer(ctx, cli)
+		}
+
+	}
 
 }
