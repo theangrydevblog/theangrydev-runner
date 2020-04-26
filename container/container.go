@@ -66,12 +66,16 @@ func (c *Container) UpdateID(ctx context.Context, cli *client.Client) {
 
 // RestartContainer restarts a shut down container
 func (c *Container) RestartContainer(ctx context.Context, cli *client.Client) {
-	fmt.Printf("Restarting container %s (%s)\n", c.Name, *c.ID)
-	if err := cli.ContainerStart(ctx, *c.ID, types.ContainerStartOptions{}); err != nil {
-		panic(err)
-	}
+	// Paranoid check. In the event the health checker pings the Docker daemon before the container gets restarted
+	// and sends a second signal in alertChannel
+	if c.CheckIfRunning(ctx, cli) == false {
+		fmt.Printf("Restarting container %s (%s)\n", c.Name, *c.ID)
+		if err := cli.ContainerStart(ctx, *c.ID, types.ContainerStartOptions{}); err != nil {
+			panic(err)
+		}
 
-	fmt.Printf("Restarted container %s\n", c.Name)
+		fmt.Printf("Restarted container %s\n", c.Name)
+	}
 }
 
 // StartContainer creates a container and starts it
