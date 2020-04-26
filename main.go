@@ -54,15 +54,23 @@ func main() {
 
 	wg.Wait()
 
-	dat, err := ioutil.ReadFile("./tests/scripts/python.py")
+	pyData, err := ioutil.ReadFile("./tests/scripts/python.py")
 	if err != nil {
 		panic(err)
 	}
 
 	python := runtimes["Python"]
-	output := python.ExecuteCode(ctx, cli, string(dat))
+	pyOutput := python.ExecuteCode(ctx, cli, string(pyData))
+	fmt.Println(pyOutput)
 
-	fmt.Println(output)
+	rbData, err := ioutil.ReadFile("./tests/scripts/ruby.rb")
+	if err != nil {
+		panic(err)
+	}
+
+	ruby := runtimes["Ruby"]
+	rbOutput := ruby.ExecuteCode(ctx, cli, string(rbData))
+	fmt.Println(rbOutput)
 
 	alertChannel := make(chan containerStruct.Health)
 	for _, r := range runtimes {
