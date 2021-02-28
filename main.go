@@ -6,7 +6,9 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	containerStruct "./container"
 	"./runtime"
@@ -25,6 +27,17 @@ func main() {
 	}
 
 	runtimes := runtime.Runtimes
+	c := make(chan os.Signal)
+	alertChannel := make(chan containerStruct.Health)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\nSIGNINT handler invoked...")
+		for _, r := range runtimes {
+			r.Container.RemoveContainer(ctx, cli)
+		}
+
+	}()
 
 	wg.Add(len(runtimes))
 

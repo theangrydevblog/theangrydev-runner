@@ -78,6 +78,14 @@ func (c *Container) RestartContainer(ctx context.Context, cli *client.Client) {
 	}
 }
 
+// RemoveContainer force removes a container. Ideally should be called on SIGINTs
+func (c *Container) RemoveContainer(ctx context.Context, cli *client.Client) {
+	cli.ContainerRemove(ctx, *c.ID, types.ContainerRemoveOptions{
+		RemoveVolumes: true,
+		Force:         true,
+	})
+}
+
 // StartContainer creates a container and starts it
 func (c *Container) StartContainer(ctx context.Context, cli *client.Client, image string) {
 	fmt.Printf("Creating container %s\n", c.Name)
@@ -85,7 +93,7 @@ func (c *Container) StartContainer(ctx context.Context, cli *client.Client, imag
 		Image: image,
 		Cmd:   []string{"/bin/bash"},
 		Tty:   true,
-	}, nil, nil, c.Name)
+	}, nil, nil, nil, c.Name)
 	if err != nil {
 		panic(err)
 	}
