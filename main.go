@@ -32,7 +32,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		fmt.Println("\nSIGNINT handler invoked...")
+		fmt.Println("\nSIGNINT handler invoked. Forecfully removing all containers")
 		for _, r := range runtimes {
 			r.Container.RemoveContainer(ctx, cli)
 		}
@@ -85,7 +85,6 @@ func main() {
 	rbOutput := ruby.ExecuteCode(ctx, cli, string(rbData))
 	fmt.Println(rbOutput)
 
-	alertChannel := make(chan containerStruct.Health)
 	for _, r := range runtimes {
 		fmt.Printf("Firing off health checker for %s\n", r.Container.Name)
 		go r.Container.Monitor(ctx, cli, alertChannel)
